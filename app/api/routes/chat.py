@@ -14,6 +14,22 @@ chat_client = get_chat_client()
 def chat():
     """
     Endpoint de chat que utiliza búsqueda semántica para contexto.
+    ---
+    tags:
+      - Chat
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ChatRequest'
+    responses:
+      200:
+        description: Respuesta generada con contexto
+        schema:
+          $ref: '#/definitions/ChatResponse'
+      400:
+        description: Error de validación
     """
     data = request.get_json()
     chat_req = ChatRequest(**data)

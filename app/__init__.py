@@ -11,13 +11,57 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
-    # Swagger setup
+    # SWAGGER SETUP
     swagger_template = {
         "info": {
             "title": "Buscador HCD API",
             "description": "API de búsqueda inteligente sobre documentos del HCD (Refactored).",
             "version": "1.0.0",
         },
+        "definitions": {
+            "ChatRequest": {
+                "type": "object",
+                "properties": {
+                    "pregunta": {"type": "string", "example": "¿Qué dice el decreto sobre transporte?"},
+                    "filtros": {"type": "object", "example": {"anio": 2023}}
+                },
+                "required": ["pregunta"]
+            },
+            "ChatResponse": {
+                "type": "object",
+                "properties": {
+                    "respuesta": {"type": "string"},
+                    "contexto": {"type": "array", "items": {"type": "object"}}
+                }
+            },
+            "IndexingResponse": {
+                "type": "object",
+                "properties": {
+                    "filename": {"type": "string"},
+                    "status": {"type": "string"},
+                    "chunks_count": {"type": "integer"}
+                }
+            },
+            "DocumentListItem": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "anio": {"type": "integer"},
+                    "tipo": {"type": "string"},
+                    "chunks_count": {"type": "integer"},
+                    "path": {"type": "string"}
+                }
+            },
+            "DocumentListResponse": {
+                "type": "object",
+                "properties": {
+                    "total": {"type": "integer"},
+                    "items": {"type": "array", "items": {"$ref": "#/definitions/DocumentListItem"}},
+                    "page": {"type": "integer"},
+                    "limit": {"type": "integer"}
+                }
+            }
+        }
     }
 
     swagger_config = {
@@ -41,27 +85,20 @@ def create_app():
     # Health check
     @app.get("/health")
     def health():
-        ok = all([
-            bool(config.AZURE_CHAT_ENDPOINT),
-            bool(config.AZURE_CHAT_API_KEY),
-            bool(config.AZURE_EMBEDDING_ENDPOINT),
-            bool(config.AZURE_EMBEDDING_API_KEY),
-            bool(config.WEAVIATE_URL),
-        ])
-        return {"status": "ok" if ok else "misconfig"}, (200 if ok else 500)
+        return {"status": "ok"}, 200
 
-    # Registrar manejadores de errores
+    # Manejador global de errores
     from app.api.handlers.error_handler import register_error_handlers
     register_error_handlers(app)
 
-    # Aquí se registrarán los blueprints más adelante
+    # REGISTRO DE BLUEPRINTS
     from app.api.routes.legacy import legacy_bp
     from app.api.routes.admin import admin_bp
     from app.api.routes.chat import chat_bp
     from app.api.routes.document import document_bp
     
     app.register_blueprint(legacy_bp)
-    app.register_blueprint(admin_bp, url_prefix="/api/docs")
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(chat_bp, url_prefix="/api/chat")
     app.register_blueprint(document_bp, url_prefix="/api/docs")
     

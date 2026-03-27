@@ -79,7 +79,7 @@ class VectorRepository:
                     }
                 ]
             }
-
+            
         try:
             result = self.client.batch.delete_objects(
                 class_name=self.class_name,
@@ -89,4 +89,58 @@ class VectorRepository:
             return result
         except Exception as e:
             logger.error(f"Error en borrado batch: {e}")
+            raise
+
+    def list_unique_documents(self, anio: Optional[int] = None, tipo: Optional[str] = None, limit: int = 20, offset: int = 0) -> Dict[str, Any]:
+        """
+        Lista documentos únicos agrupando por título, con filtros opcionales.
+        """
+        try:
+            # Construcción de filtros
+            operands = []
+            if anio:
+                operands.append({"path": ["anio"], "operator": "Equal", "valueInt": anio})
+            if tipo:
+                operands.append({"path": ["tipo"], "operator": "Equal", "valueString": tipo})
+            
+            query = self.client.query.get(self.class_name, ["title", "anio", "tipo", "path"])
+            
+            if operands:
+                where_filter = {"operator": "And", "operands": operands} if len(operands) > 1 else operands[0]
+                query = query.with_where(where_filter)
+            
+            # Agrupamiento por título (para no ver cada fragmento)
+            # En Weaviate v3, usamos group_by
+            result = (
+                query
+                .with_group_by(["title"], limit, 1)
+                .with_limit(limit)
+                .with_offset(offset)
+                .do()
+            )
+            
+            groups = result.get("data", {}).get("Get", {}).get(self.class_name, [])
+            
+            items = []
+            for g in groups:
+                # Extraer info del primer item del grupo
+                additional = g.get("_additional", {})
+                group_data = additional.get("group", {})
+                hits = group_data.get("hits", [{}])
+                first_hit = hits[0] if hits else {}
+                
+                items.append({
+                    "title": g.get("title"),
+                    "anio": first_hit.get("anio") or g.get("anio"),
+                    "tipo": first_hit.get("tipo") or g.get("tipo"),
+                    "path": first_hit.get("path") or g.get("path"),
+                    "chunks_count": group_data.get("count", 1)
+                })
+            
+            return {
+                "items": items,
+                "total": len(items)
+            }
+        except Exception as e:
+            logger.error(f"Error listando documentos: {e}")
             raise

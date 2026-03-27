@@ -5,30 +5,9 @@ import re
 import logging
 from flask import Blueprint, request, jsonify
 from pathlib import Path
-from pypdf import PdfReader
-from openai import AzureOpenAI
-import weaviate
 
 from app.core import config
-
 from app.core.logging import get_logger
-
-from app.clients.azure_openai_client import get_chat_client, get_embedding_client
-from app.clients.weaviate_client import get_weaviate_client
-
-# Blueprint
-legacy_bp = Blueprint("legacy", __name__)
-logger = get_logger("legacy")
-
-# Clientes encapsulados
-chat_client = get_chat_client()
-embedding_client = get_embedding_client()
-weaviate_client = get_weaviate_client()
-
-# Constantes y Regex (Serán movidos en TODO-005/006)
-TYPE_MAP = {"D": "Decreto", "O": "Ordenanza", "C": "Comunicación", "R": "Resolución"}
-NAME_RE = re.compile(r"^\s*([DOCR])-(\d{4})\s*-\s*(.+?)\.pdf$", re.IGNORECASE)
-
 from app.services.search_service import SearchService
 from app.services.indexing_service import IndexingService
 from app.schemas.api import ChatRequest, IndexingResponse
@@ -43,21 +22,61 @@ indexing_service = IndexingService()
 
 @legacy_bp.post("/api/chat/contexto")
 def chat_contexto():
+    """
+    Endpoint legacy para recuperar contexto semántico (Búsqueda pura).
+    ---
+    tags:
+      - Legacy
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ChatRequest'
+    responses:
+      200:
+        description: Lista de fragmentos relevantes
+      400:
+        description: Error de validación
+    """
     data = request.get_json()
-    # Usar el schema para validar aunque sea legacy
     chat_req = ChatRequest(**data)
     results = search_service.search_context(chat_req.pregunta, filters=chat_req.filtros)
     return jsonify({"contexto": results, "status": "ok"}), 200
 
 @legacy_bp.post("/api/carga/pdf")
 def cargar_pdf():
-    # Delegar a la lógica de document_bp/upload (reutilizando el servicio)
+    """
+    Endpoint legacy para carga de PDF (Redirige al servicio modular).
+    ---
+    tags:
+      - Legacy
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: file
+        in: formData
+        type: file
+        required: true
+    responses:
+      201:
+        description: Éxito
+    """
     if "file" not in request.files:
         return jsonify({"error": "No file"}), 400
     file = request.files["file"]
-    # ... (podríamos delegar totalmente o mantener esta estructura mínima)
-    # Por simplicidad en el refactor, redirigimos mentalmente al servicio
-    from app.api.routes.document import upload_document
-    return upload_document()
-
-# ... resto de rutas ...
+    
+    # Guardar temporalmente
+    temp_path = Path("temp") / f"legacy_{uuid.uuid4()}_{file.filename}"
+    temp_path.parent.mkdir(exist_ok=True)
+    file.save(str(temp_path))
+    
+    try:
+        result = indexing_service.index_document(str(temp_path))
+        return jsonify(result), 201
+    except Exception as e:
+        logger.error(f"Error en carga legacy: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()

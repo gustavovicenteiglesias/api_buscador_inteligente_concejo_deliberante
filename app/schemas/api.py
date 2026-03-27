@@ -32,3 +32,16 @@ class DeletionResponse(BaseModel):
     mes: Optional[int]
     status: str
     deleted_count: int
+
+class DocumentListItem(BaseModel):
+    title: str
+    anio: Optional[int]
+    tipo: Optional[str]
+    chunks_count: int
+    path: Optional[str]
+
+class DocumentListResponse(BaseModel):
+    total: int
+    items: List[DocumentListItem]
+    page: int
+    limit: int
