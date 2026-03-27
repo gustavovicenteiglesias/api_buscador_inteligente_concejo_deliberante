@@ -144,3 +144,25 @@ class VectorRepository:
         except Exception as e:
             logger.error(f"Error listando documentos: {e}")
             raise
+
+    def delete_by_filename(self, filename: str) -> int:
+        """
+        Elimina todos los chunks de Weaviate cuyo título coincida exactamente con el filename dado.
+        Retorna la cantidad de objetos eliminados.
+        """
+        where_filter = {
+            "path": ["title"],
+            "operator": "Equal",
+            "valueString": filename
+        }
+        try:
+            result = self.client.batch.delete_objects(
+                class_name=self.class_name,
+                where=where_filter
+            )
+            deleted = result.get("results", {}).get("successful", 0) if result else 0
+            logger.info(f"[DELETE_FILENAME] Eliminados {deleted} chunks para filename='{filename}'")
+            return deleted
+        except Exception as e:
+            logger.error(f"[DELETE_FILENAME] Error borrando chunks para filename='{filename}': {e}")
+            raise

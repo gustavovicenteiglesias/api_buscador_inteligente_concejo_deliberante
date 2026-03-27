@@ -1,7 +1,7 @@
 # TODO-018 Endpoint de listado de archivos
 
 ## Estado
-DOING
+DONE
 
 ## Prioridad
 Media

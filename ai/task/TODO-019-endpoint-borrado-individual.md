@@ -1,5 +1,8 @@
 # TODO-019 Endpoint de Borrado Individual de Documentos
 
+## Estado
+DONE
+
 ## Contexto
 El usuario necesita que la aplicación principal (Spring Boot con MySQL) pueda orquestar el borrado total de un documento de todos los sistemas distribuidos (disco local en VPS y Base de Datos Vectorial Weaviate).
 

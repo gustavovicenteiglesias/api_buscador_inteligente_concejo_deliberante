@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
+from werkzeug.utils import secure_filename
 from app.services.document_service import DocumentService
-from app.schemas.api import DeletionResponse
+from app.schemas.api import DeletionResponse, DeleteDocumentResponse
 from app.core.logging import get_logger
 
 admin_bp = Blueprint("admin", __name__)
@@ -53,3 +54,34 @@ def delete_by_month(anio: int, mes: int):
     """
     result = document_service.delete_by_period(anio=anio, mes=mes)
     return jsonify(DeletionResponse(**result).model_dump()), 200
+
+@admin_bp.route("/documento/<path:filename>", methods=["DELETE"])
+def delete_documento(filename: str):
+    """
+    Borra un documento individual de Weaviate y del disco.
+    ---
+    tags:
+      - Admin
+    parameters:
+      - name: filename
+        in: path
+        type: string
+        required: true
+        description: Nombre exacto del archivo PDF a eliminar (ej. O-2023-123.pdf)
+    responses:
+      200:
+        description: Borrado exitoso (idempotente, devuelve 200 aunque no exista)
+        schema:
+          $ref: '#/definitions/DeleteDocumentResponse'
+      400:
+        description: Nombre de archivo inválido
+    """
+    # Protección anti path traversal
+    if ".." in filename or filename.startswith("/"):
+        return jsonify({"error": "Nombre de archivo inválido"}), 400
+
+    filename = filename.strip()
+    logger.info(f"[ROUTE] DELETE /api/admin/documento/{filename}")
+
+    result = document_service.delete_document_by_filename(filename)
+    return jsonify(DeleteDocumentResponse(**result).model_dump()), 200

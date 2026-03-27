@@ -1,7 +1,7 @@
 # TODO-017 Persistencia administrativa futura
 
 ## Estado
-TODO
+DONE
 
 ## Prioridad
 Baja

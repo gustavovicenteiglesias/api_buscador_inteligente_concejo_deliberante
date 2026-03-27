@@ -45,3 +45,9 @@ class DocumentListResponse(BaseModel):
     items: List[DocumentListItem]
     page: int
     limit: int
+
+class DeleteDocumentResponse(BaseModel):
+    status: str
+    filename: str
+    chunks_removed: int
+    file_deleted: bool
