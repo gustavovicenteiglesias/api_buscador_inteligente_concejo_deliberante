@@ -1,4 +1,5 @@
 from flask import jsonify
+from werkzeug.exceptions import HTTPException
 from pydantic import ValidationError as PydanticValidationError
 from app.core.errors import AppError, ValidationError as AppValidationError
 from app.core.logging import get_logger
@@ -6,6 +7,13 @@ from app.core.logging import get_logger
 logger = get_logger("error_handler")
 
 def register_error_handlers(app):
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e):
+        return jsonify({
+            "code": "HTTP_ERROR",
+            "error": e.description
+        }), e.code
+
     @app.errorhandler(AppError)
     def handle_app_error(error):
         logger.warning(f"AppError: {error.message} (code={error.code})")

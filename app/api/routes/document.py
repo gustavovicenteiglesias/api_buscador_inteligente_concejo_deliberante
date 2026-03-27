@@ -82,19 +82,15 @@ def upload_document():
         raise ValidationError("Nombre de archivo vacío")
         
     if file and file.filename.lower().endswith(".pdf"):
-        filename = secure_filename(file.filename)
+        filename = file.filename.strip()
+        config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         upload_path = config.UPLOAD_DIR / filename
         
-        # Guardar archivo temporalmente
+        # Guardar archivo permanentemente para que los links estáticos sigan funcionando
         file.save(str(upload_path))
         
-        try:
-            # Indexar
-            result = indexing_service.index_document(upload_path)
-            return jsonify(IndexingResponse(**result).model_dump()), 201
-        finally:
-            # Opcional: eliminar el archivo si no se requiere persistencia en disco
-            if upload_path.exists():
-                os.remove(upload_path)
+        # Indexar
+        result = indexing_service.index_document(upload_path)
+        return jsonify(IndexingResponse(**result).model_dump()), 201
             
     raise ValidationError("Solo se permiten archivos PDF")
