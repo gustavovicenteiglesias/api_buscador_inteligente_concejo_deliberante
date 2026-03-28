@@ -147,13 +147,28 @@ class VectorRepository:
 
     def delete_by_filename(self, filename: str) -> int:
         """
-        Elimina todos los chunks de Weaviate cuyo título coincida exactamente con el filename dado.
-        Retorna la cantidad de objetos eliminados.
+        Elimina chunks cuyo título o path correspondan al filename.
+        - En indexación el título se guarda SIN la extensión (.pdf).
+        - El path guarda la ruta completa con la extensión.
+        Borramos con OR sobre ambos criterios.
         """
+        import os
+        base_name = os.path.splitext(filename)[0]
+
         where_filter = {
-            "path": ["title"],
-            "operator": "Equal",
-            "valueString": filename
+            "operator": "Or",
+            "operands": [
+                {
+                    "path": ["title"],
+                    "operator": "Equal",
+                    "valueString": base_name
+                },
+                {
+                    "path": ["path"],
+                    "operator": "Like",
+                    "valueText": f"*{filename}"
+                }
+            ]
         }
         try:
             result = self.client.batch.delete_objects(
@@ -161,7 +176,7 @@ class VectorRepository:
                 where=where_filter
             )
             deleted = result.get("results", {}).get("successful", 0) if result else 0
-            logger.info(f"[DELETE_FILENAME] Eliminados {deleted} chunks para filename='{filename}'")
+            logger.info(f"[DELETE_FILENAME] Eliminados {deleted} chunks para filename='{filename}' (where={where_filter})")
             return deleted
         except Exception as e:
             logger.error(f"[DELETE_FILENAME] Error borrando chunks para filename='{filename}': {e}")
